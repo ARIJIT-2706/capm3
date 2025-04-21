@@ -54,6 +54,22 @@ def calculate_beta(stocks_daily_return, stock):
     b, a = np.polyfit(stocks_daily_return['sp500'], stocks_daily_return[stock], 1)
     return b, a
 
+
+def get_sp500_data(start_date, end_date):
+    try:
+         # Try using pandas-datareader first
+        SP500 = web.DataReader(['sp500'], 'fred', start_date, end_date)
+        SP500.reset_index(inplace=True)
+        SP500.columns = ['Date', 'sp500']
+        return SP500
+    except Exception as e:
+        st.warning("Couldn't fetch S&P500 data from FRED. Using ^GSPC from Yahoo Finance instead.")
+        # Use ^GSPC from Yahoo Finance as a fallback
+        sp_data = yf.download('^GSPC', start=start_date, end=end_date)
+        sp_data = sp_data[['Close']].reset_index()
+        sp_data.columns = ['Date', 'sp500']
+        return sp_data
+
 # Create tabs for the two different calculators
 tab1, tab2 = st.tabs(["Multiple Stocks CAPM", "Individual Stock Beta"])
 
@@ -78,7 +94,7 @@ with tab1:
             # Downloading data for SP500
             end = datetime.date.today()
             start = datetime.date(datetime.date.today().year - year, datetime.date.today().month, datetime.date.today().day)
-            SP500 = web.DataReader(['sp500'], 'fred', start, end)
+            SP500 = get_sp500_data(start, end)
 
             # Downloading data for the stocks
             stocks_df = pd.DataFrame()
@@ -173,7 +189,7 @@ with tab2:
             # Downloading data for SP500
             end = datetime.date.today()
             start = datetime.date(datetime.date.today().year - year, datetime.date.today().month, datetime.date.today().day)
-            SP500 = web.DataReader(['sp500'], 'fred', start, end)
+            SP500 = get_sp500_data(start, end)
 
             # Downloading data for the stock
             stocks_df = yf.download(stock, period=f'{year}y')
