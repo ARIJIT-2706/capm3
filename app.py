@@ -57,7 +57,7 @@ def calculate_beta(stocks_daily_return, stock):
 
 def get_sp500_data(start_date, end_date):
     try:
-         # Try using pandas-datareader first
+        # Try using pandas-datareader first
         SP500 = web.DataReader(['sp500'], 'fred', start_date, end_date)
         SP500.reset_index(inplace=True)
         SP500.columns = ['Date', 'sp500']
@@ -93,7 +93,7 @@ with tab1:
         try:
             # Downloading data for SP500
             end = datetime.date.today()
-            start = datetime.date(datetime.date.today().year - year, datetime.date.today().month, datetime.date.today().day)
+            start = datetime.date(end.year - year, end.month, end.day)
             SP500 = get_sp500_data(start, end)
 
             # Downloading data for the stocks
@@ -102,11 +102,19 @@ with tab1:
                 data = yf.download(stock, period=f'{year}y')
                 stocks_df[f'{stock}'] = data['Close']
             stocks_df.reset_index(inplace=True)
-            SP500.reset_index(inplace=True)
-            SP500.columns = ['Date', 'sp500']
+            
+            # Fix: No need to reset index of SP500 again as it's already reset in get_sp500_data
+            # SP500.reset_index(inplace=True)
+            # SP500.columns = ['Date', 'sp500']
+            
             stocks_df['Date'] = stocks_df['Date'].astype('datetime64[ns]')
             stocks_df['Date'] = stocks_df['Date'].apply(lambda x: str(x)[:10])
             stocks_df['Date'] = pd.to_datetime(stocks_df['Date'])
+            
+            # Ensure both dataframes have datetime format for Date column before merging
+            SP500['Date'] = pd.to_datetime(SP500['Date'])
+            
+            # Merge dataframes
             stocks_df = pd.merge(stocks_df, SP500, on='Date', how='inner')
 
             col1, col2 = st.columns([1, 1])
@@ -135,7 +143,7 @@ with tab1:
             alpha = {}
 
             for i in stocks_daily_return.columns:
-                # Ignoring the date and S&P500 Columns 
+                # Ignoring the Date and S&P500 Columns 
                 if i != 'Date' and i != 'sp500':
                     # Calculate beta and alpha for all stocks
                     b, a = calculate_beta(stocks_daily_return, i)
@@ -144,9 +152,11 @@ with tab1:
 
             col1, col2 = st.columns([1, 1])
 
-            beta_df = pd.DataFrame(columns=['Stock', 'Beta Value'])
-            beta_df['Stock'] = beta.keys()
-            beta_df['Beta Value'] = [str(round(i, 2)) for i in beta.values()]
+            # Fix: Create DataFrame properly from dictionary
+            beta_df = pd.DataFrame({
+                'Stock': list(beta.keys()),
+                'Beta Value': [str(round(i, 2)) for i in beta.values()]
+            })
 
             with col1:
                 st.markdown('### Calculated Beta Value ')
@@ -155,15 +165,12 @@ with tab1:
             # Calculate return for any security using CAPM  
             rf = 0  # Risk free rate of return
             rm = stocks_daily_return['sp500'].mean() * 252  # Market portfolio return
-            return_df = pd.DataFrame()
-            stock_list = []
-            return_value = []
-            for stock, value in beta.items():
-                stock_list.append(stock)
-                # Calculate return
-                return_value.append(str(round(rf + (value * (rm - rf)), 2)))
-            return_df['Stock'] = stock_list
-            return_df['Return Value'] = return_value
+            
+            # Fix: Create DataFrame properly
+            return_df = pd.DataFrame({
+                'Stock': list(beta.keys()),
+                'Return Value': [str(round(rf + (value * (rm - rf)), 2)) for value in beta.values()]
+            })
 
             with col2:
                 st.markdown('### Calculated Return using CAPM ')
@@ -188,7 +195,7 @@ with tab2:
         try:
             # Downloading data for SP500
             end = datetime.date.today()
-            start = datetime.date(datetime.date.today().year - year, datetime.date.today().month, datetime.date.today().day)
+            start = datetime.date(end.year - year, end.month, end.day)
             SP500 = get_sp500_data(start, end)
 
             # Downloading data for the stock
@@ -196,11 +203,19 @@ with tab2:
             stocks_df = stocks_df[['Close']]
             stocks_df.columns = [f'{stock}']
             stocks_df.reset_index(inplace=True)
-            SP500.reset_index(inplace=True)
-            SP500.columns = ['Date', 'sp500']
+            
+            # Fix: No need to reset index again
+            # SP500.reset_index(inplace=True)
+            # SP500.columns = ['Date', 'sp500']
+            
             stocks_df['Date'] = stocks_df['Date'].astype('datetime64[ns]')
             stocks_df['Date'] = stocks_df['Date'].apply(lambda x: str(x)[:10])
             stocks_df['Date'] = pd.to_datetime(stocks_df['Date'])
+            
+            # Ensure both dataframes have datetime format for Date column
+            SP500['Date'] = pd.to_datetime(SP500['Date'])
+            
+            # Merge dataframes
             stocks_df = pd.merge(stocks_df, SP500, on='Date', how='inner')
 
             # Calculating daily return 
